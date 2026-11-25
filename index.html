@@ -424,8 +424,14 @@ function update(dt,demo){G.t+=dt;G.banner-=dt;
  if(!demo&&((G.t*10)|0)!==((G.t-dt)*10|0))hud();}
 
 function groundUnder(e){let g=GY;for(const o of obs)if(e.x>o.x&&e.x<o.x+o.w&&o.y>=e.y-1&&o.y<g)g=o.y;return g;}
-function powerHud(){const list=[['치즈 가속',M.boost,cur().id==='snow'?3.6:2.6,'#ffc93c'],['스케이트',M.skate,cur().id==='chef'?6:DUR.skate,'#ff8f7a'],['무적 물약',M.potion,DUR.potion,'#b98ad9']].filter(p=>p[1]>0);
- const m=cur().id==='rainbow'?1.5:1;list.forEach((p,i)=>{const y=12+i*34;ctx.globalAlpha=.8;RR(ctx,12,y,160,28,10,'#3b2a1a');ctx.globalAlpha=1;RR(ctx,16,y+20,152*cl(p[1]/(p[2]*m),0,1),4,2,p[3]);ctx.fillStyle='#fff';ctx.font='16px Jua, sans-serif';ctx.textAlign='left';ctx.fillText(p[0]+' '+p[1].toFixed(1)+'초',22,y+17);});}
+function powerHud(){const m=cur().id==='rainbow'?1.5:1;
+ if(M.boost>0){const full=cur().id==='snow'?3.6:2.6;ctx.globalAlpha=.8;RR(ctx,12,12,150,28,10,'#3b2a1a');ctx.globalAlpha=1;RR(ctx,16,32,142*cl(M.boost/full,0,1),4,2,'#ffc93c');ctx.fillStyle='#fff';ctx.font='16px Jua, sans-serif';ctx.textAlign='left';ctx.fillText('치즈 가속 '+M.boost.toFixed(1)+'초',22,29);}
+ const big=[['skate',M.skate,cur().id==='chef'&&G.t<6.5?6:DUR.skate*m,'#ff8f7a','스케이트'],['potion',M.potion,DUR.potion*m,'#b98ad9','무적!']].filter(p=>p[1]>0);
+ const pw=176,gap=12,tot=big.length*pw+(big.length-1)*gap;big.forEach((p,i)=>{const x=W/2-tot/2+i*(pw+gap),y=10,warn=p[1]<2&&Math.sin(T*18)>0;
+  ctx.globalAlpha=.85;RR(ctx,x,y,pw,62,16,warn?'#c0392b':'#3b2a1a');ctx.globalAlpha=1;ctx.strokeStyle=p[3];ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(x,y,pw,62,16);ctx.stroke();
+  drawItem(ctx,x+30,y+(p[0]==='skate'?30:33),p[0],T,1.05);
+  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='15px Jua, sans-serif';ctx.fillText(p[4],x+60,y+21);ctx.font='30px Jua, sans-serif';ctx.fillStyle=p[1]<2?'#ffb3a3':'#fff';const num=p[1].toFixed(1);ctx.fillText(num,x+60,y+48);const nw=ctx.measureText(num).width;ctx.font='15px Jua, sans-serif';ctx.fillText('초',x+63+nw,y+48);
+  RR(ctx,x+12,y+53,pw-24,5,3,'rgba(255,255,255,.2)');RR(ctx,x+12,y+53,(pw-24)*cl(p[1]/p[2],0,1),5,3,p[3]);});}
 function render(){const sx=cv.width/W,sy=cv.height/H;let ox=0,oy=0;if(G.shake>0){ox=R(-1,1)*G.shake*10;oy=R(-1,1)*G.shake*10;}
  ctx.setTransform(sx,0,0,sy,ox*sx,oy*sy);bg(ctx,W,H,GY,camX,save.theme,T);
  const vis=x=>x>camX-140&&x<camX+W+140;
