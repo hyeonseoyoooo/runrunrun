@@ -87,6 +87,7 @@ h2.sec{font-size:clamp(28px,4vw,38px);font-weight:400;margin:0 0 4px;line-height
   <div class="hud">
    <span class="pill">달린 거리 <b id="hD">0</b>m</span>
    <span class="pill">치즈 <b id="hC">0</b></span>
+   <span class="pill">속도 <b>Lv.<span id="hL">1</span></b></span>
    <span class="pill">최고 기록 <b id="hB">0</b>m</span>
    <button class="pill" id="pauseBtn" type="button">일시정지</button>
   </div>
@@ -306,20 +307,20 @@ function bg(c,w,h,gy,cam,id,t){
 
 
 /* ---------- 게임 상태 ---------- */
-const GRAV=1850,JUMP=-660,JUMP2=-600,DUR={skate:5,potion:4},INAME={skate:'스케이트',potion:'무적 물약'};
+const GRAV=1850,JUMP=-660,JUMP2=-600,DUR={skate:5,potion:7},INAME={skate:'스케이트',potion:'무적 물약'};
 let G={state:'menu',t:0,cheese:0,smash:0,shake:0,dist:0},M,C,obs=[],traps=[],cheeses=[],items=[],parts=[],trail=[],camX=0,nextX=0,lastItemX=0,lastPotX=0;
 let jumpBuf=0;
 const cur=()=>CH(save.sel);
 function newM(){return{x:140,y:GY,vy:0,vx:0,w:26,h:30,dir:1,onG:true,coy:0,air:1,boost:0,stun:0,flip:0,skate:0,potion:0};}
 function newC(x){return{x,y:GY,vy:0,vx:0,w:44,h:42,dir:1,onG:true,sp:170};}
-const runSp=()=>Math.min(430,250+G.t*3);
+const runSp=()=>G.base||240,lvSp=lv=>240+(lv-1)*26;
 function spawn(){while(nextX<camX+W+500){const kinds=['box','books','can'];const kind=kinds[(Math.random()*3)|0];
  const w=kind==='can'?R(36,46):R(44,92),h=kind==='can'?R(44,62):R(34,Math.min(120,70+G.t*1.2));
  const o={x:nextX,y:GY-h,w,h,kind,seed:(Math.random()*5)|0};obs.push(o);
  if(Math.random()<.55)cheeses.push({x:o.x+o.w/2,y:o.y-34});
  const gap=R(230,420)*Math.max(1,runSp()/250),gx=o.x+o.w,r=Math.random();
  if(nextX-lastPotX>7000&&Math.random()<.08){items.push({x:gx+gap*.5,y:GY-110,kind:'potion'});lastPotX=nextX;lastItemX=nextX;}
- else if(nextX-lastItemX>1500&&Math.random()<.4){items.push({x:gx+gap*.5,y:GY-62,kind:'skate'});lastItemX=nextX;}
+ else if(nextX-lastItemX>2600&&Math.random()<.3){items.push({x:gx+gap*.5,y:GY-26,kind:'skate'});lastItemX=nextX;}
  else if(r<.25&&h>80)cheeses.push({x:o.x+o.w/2,y:o.y-120});
  else if(r<.45)traps.push({x:gx+gap*R(.35,.6),on:true});
  else if(r<.75)cheeses.push({x:gx+gap*R(.3,.7),y:Math.random()<.5?GY-28:GY-130});
@@ -337,9 +338,9 @@ function burst(x,y,col,n,text,grav){for(let i=0;i<n;i++){const a=R(0,TAU),s=R(60
 const OBJCOL={box:['#e2a868','#f3d9a4','#a86c35'],books:['#5a7bff','#ff6f59','#43b581','#ffb02e'],can:['#b9c0c9','#e84855','#d6dbe1']};
 
 function show(id){for(const o of['ovMenu','ovOver','ovPause'])$(o).hidden=o!==id;$('jumpBtn').hidden=G.state!=='play';}
-function hud(){$('hD').textContent=Math.floor(G.dist);$('hC').textContent=G.cheese;$('hB').textContent=Math.floor(save.best);$('cash').textContent=save.cash;$('pauseBtn').textContent=G.state==='pause'?'계속하기':'일시정지';}
+function hud(){$('hD').textContent=Math.floor(G.dist);$('hC').textContent=G.cheese;$('hB').textContent=Math.floor(save.best);$('hL').textContent=G.lv||1;$('cash').textContent=save.cash;$('pauseBtn').textContent=G.state==='pause'?'계속하기':'일시정지';}
 
-function reset(state){layout();fit();G={state,t:0,cheese:0,smash:0,shake:0,dist:0,delay:1.3};M=newM();C=newC(M.x-330);obs=[];traps=[];cheeses=[];items=[];parts=[];trail=[];camX=0;nextX=560;lastItemX=-600;lastPotX=0;spawn();jumpBuf=0;}
+function reset(state){layout();fit();G={state,t:0,cheese:0,smash:0,shake:0,dist:0,delay:1.3,lv:1,base:240,banner:0};M=newM();C=newC(M.x-330);obs=[];traps=[];cheeses=[];items=[];parts=[];trail=[];camX=0;nextX=560;lastItemX=-600;lastPotX=0;spawn();jumpBuf=0;}
 function newGame(){reset('play');if(cur().id==='chef')M.skate=6;show(null);hud();}
 function menu(){reset('menu');C.x=M.x-200;show('ovMenu');hud();}
 function over(){G.state='over';const ch=cur();const earned=G.cheese*3*(ch.id==='prince'?2:1)+Math.floor(G.dist/10)+G.smash*2;const rec=G.dist>save.best;save.cash+=earned;if(rec)save.best=G.dist;store();
@@ -349,13 +350,14 @@ function over(){G.state='over';const ch=cur();const earned=G.cheese*3*(ch.id==='
 
 function aheadOf(e,range){for(const o of obs)if(o.x>e.x&&o.x-(e.x+e.w/2)<range&&o.y<e.y-4)return o;return null;}
 function smashObj(o){G.smash++;G.shake=Math.max(G.shake,.28);const cs=OBJCOL[o.kind];for(const col of cs)burst(o.x+o.w/2,o.y+o.h/2,col,6,null,true);burst(o.x+o.w/2,o.y,'#fff',0,'쾅!');}
-function update(dt,demo){G.t+=dt;G.shake=Math.max(0,G.shake-dt*2);const ch=cur(),mult=ch.id==='rainbow'?1.5:1;
+function update(dt,demo){G.t+=dt;G.banner-=dt;
+ if(!demo){const lv=Math.min(10,1+Math.floor(G.t/15));if(lv>G.lv){G.lv=lv;G.banner=2.2;hud();}G.base+=(lvSp(G.lv)-G.base)*Math.min(1,dt*1.2);}G.shake=Math.max(0,G.shake-dt*2);const ch=cur(),mult=ch.id==='rainbow'?1.5:1;
  let jumpNow=false;
  if(demo){const o=aheadOf(M,80),tp=traps.find(t=>t.on&&t.x>M.x&&t.x-M.x<80);if((o||tp)&&M.onG&&M.potion<=0)jumpNow=true;if(!M.onG&&M.vy>0&&M.air>0&&o&&o.y<M.y-10&&M.potion<=0)jumpNow=true;}
  else{jumpBuf-=dt;jumpNow=jumpBuf>0;}
  for(const k of['stun','boost','flip','skate','potion'])M[k]-=dt;
  M.coy=M.onG?.09:M.coy-dt;if(M.onG)M.air=ch.id==='ninja'?2:1;
- const ms=demo?250:runSp(),extra=Math.max(M.boost>0?150:0,M.skate>0?170:0,M.potion>0?340:0);
+ const ms=demo?250:runSp(),extra=Math.max(M.boost>0?150:0,M.skate>0?170:0,M.potion>0?340*Math.min(1,M.potion/2.5):0);
  M.vx=M.stun>0?0:ms+extra;M.dir=1;
  const J=ch.id==='astro'?1.14:1;
  if(jumpNow&&M.stun<=0){if(M.coy>0){M.vy=JUMP*J;M.coy=0;jumpBuf=0;M.onG=false;}else if(M.air>0){M.vy=JUMP2*J;M.air--;jumpBuf=0;M.flip=.35;burst(M.x,M.y-4,'#ffffff',8);}}
@@ -365,9 +367,9 @@ function update(dt,demo){G.t+=dt;G.shake=Math.max(0,G.shake-dt*2);const ch=cur()
  if(extra&&M.stun<=0)trail.push({x:M.x,y:M.y-14,life:.3,col:M.potion>0?'#c9a2f0':M.skate>0?'#ffb3a3':'#ffd34d'});
  G.dist=Math.max(G.dist,(M.x-140)/40);
  for(let i=cheeses.length-1;i>=0;i--){const c=cheeses[i];if(Math.hypot(c.x-M.x,c.y-(M.y-16))<30){cheeses.splice(i,1);if(!demo)G.cheese++;M.boost=ch.id==='snow'?3.6:2.6;burst(c.x,c.y,'#ffc93c',12,'가속!');}}
- for(let i=items.length-1;i>=0;i--){const it=items[i];if(Math.hypot(it.x-M.x,it.y-(M.y-16))<34){items.splice(i,1);M[it.kind]=DUR[it.kind]*mult;burst(it.x,it.y,it.kind==='potion'?'#d9b8ff':'#fff',it.kind==='potion'?26:14,INAME[it.kind]+'!');if(it.kind==='potion')G.shake=.3;}}
+ for(let i=items.length-1;i>=0;i--){const it=items[i];if(Math.hypot(it.x-M.x,it.y-(M.y-16))<38){items.splice(i,1);M[it.kind]=DUR[it.kind]*mult;burst(it.x,it.y,it.kind==='potion'?'#d9b8ff':'#fff',it.kind==='potion'?26:14,INAME[it.kind]+'!');if(it.kind==='potion')G.shake=.3;}}
  for(const tp of traps)if(tp.on&&M.y>GY-6&&Math.abs(tp.x-M.x)<22&&M.stun<=0){tp.on=false;if(M.potion>0){burst(tp.x,GY-12,'#c9a2f0',8,'휙!');continue;}M.stun=ch.id==='dust'?.35:.9;M.boost=0;M.skate=0;G.shake=.5;burst(tp.x,GY-16,'#8d99a6',8,'찰칵!');}
- if(G.t>G.delay||demo){C.sp=demo?(M.x-C.x>190?260+extra:238+extra*.9):runSp()*.96+Math.min(45,G.t*.7);
+ if(G.t>G.delay||demo){C.sp=demo?(M.x-C.x>190?260+extra:238+extra*.9):runSp()*.96+Math.min(40,G.t*.5);
   const dx=M.x-C.x;let sp=C.sp;if(!demo&&dx>460)sp*=1.5;
   C.vx=Math.abs(dx)<4?0:Math.sign(dx)*sp;if(Math.abs(dx)>4)C.dir=Math.sign(dx);
   if(C.onG){const o=C.dir>0?aheadOf(C,60):null;if(o||(M.y<C.y-50&&Math.abs(dx)<130))C.vy=-720;}
@@ -401,7 +403,7 @@ function render(){const sx=cv.width/W,sy=cv.height/H;let ox=0,oy=0;if(G.shake>0)
  if(M.stun>0&&G.state==='play')for(let i=0;i<3;i++){const a=T*6+i*TAU/3;E(ctx,mx+Math.cos(a)*14,M.y-70+Math.sin(a)*4,2.6,2.6,'#ffc93c');}
  for(const p of parts){ctx.globalAlpha=Math.max(0,Math.min(1,p.life*2));if(p.text){ctx.fillStyle=p.col;ctx.font='22px Jua, sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(p.text,p.x-camX,p.y);ctx.fillText(p.text,p.x-camX,p.y);}else if(p.g){ctx.fillStyle=p.col;ctx.fillRect(p.x-camX-p.sz/2,p.y-p.sz/2,p.sz,p.sz);}else E(ctx,p.x-camX,p.y,p.sz,p.sz,p.col);}ctx.globalAlpha=1;
  if(G.state==='play'&&near){const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,'rgba(255,80,60,0)');g.addColorStop(1,'rgba(255,80,60,.22)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
- if(G.state==='play'){powerHud();if(G.t<G.delay+.6){ctx.font='54px Jua, sans-serif';ctx.textAlign='center';ctx.lineWidth=8;ctx.strokeStyle='#3b2a1a';ctx.fillStyle='#ffd34d';const s=G.t<G.delay?'준비…':'도망쳐!';ctx.strokeText(s,W/2,H*.3);ctx.fillText(s,W/2,H*.3);}}}
+ if(G.state==='play'){powerHud();if(G.banner>0&&G.t>G.delay+.6){ctx.globalAlpha=Math.min(1,G.banner*2);ctx.textAlign='center';ctx.lineWidth=8;ctx.strokeStyle='#3b2a1a';ctx.font='46px Jua, sans-serif';ctx.fillStyle='#ff7a45';ctx.strokeText('속도 Lv.'+G.lv+'!',W/2,H*.28);ctx.fillText('속도 Lv.'+G.lv+'!',W/2,H*.28);ctx.font='22px Jua, sans-serif';ctx.lineWidth=5;ctx.fillStyle='#fff';ctx.strokeText('쥐도 고양이도 빨라져요',W/2,H*.28+34);ctx.fillText('쥐도 고양이도 빨라져요',W/2,H*.28+34);ctx.globalAlpha=1;}if(G.t<G.delay+.6){ctx.font='54px Jua, sans-serif';ctx.textAlign='center';ctx.lineWidth=8;ctx.strokeStyle='#3b2a1a';ctx.fillStyle='#ffd34d';const s=G.t<G.delay?'준비…':'도망쳐!';ctx.strokeText(s,W/2,H*.3);ctx.fillText(s,W/2,H*.3);}}}
 
 let last=performance.now();
 function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;T+=dt;
@@ -432,7 +434,7 @@ document.querySelectorAll('[data-go=shop]').forEach(b=>b.addEventListener('click
 let lastW=0;addEventListener('resize',()=>{const w=stage.parentElement.clientWidth;if(G.state==='menu'&&(w<640)!==(lastW<640))menu();lastW=w;});
 
 /* ---------- 아이템 안내 ---------- */
-$('legend').innerHTML=[['cheese','치즈: 잠깐 가속'],['skate','스케이트: 5초 쌩쌩'],['potion','무적 물약(아주 희귀!): 4초 동안 엄청 빠르고 모든 걸 뚫고 부숴요']].map(([k,l])=>`<span><canvas width="68" height="68" data-k="${k}"></canvas>${l}</span>`).join('');
+$('legend').innerHTML=[['cheese','치즈: 잠깐 가속'],['skate','스케이트: 5초 쌩쌩'],['potion','무적 물약(아주 희귀!): 7초 동안 엄청 빠르고 모든 걸 뚫고 부숴요']].map(([k,l])=>`<span><canvas width="68" height="68" data-k="${k}"></canvas>${l}</span>`).join('');
 $('legend').querySelectorAll('canvas').forEach(c=>{const x=c.getContext('2d');x.setTransform(2,0,0,2,0,0);if(c.dataset.k==='cheese')drawCheese(x,17,20,0);else drawItem(x,17,18,c.dataset.k,0,.85);});
 
 /* ---------- 상점: 캐릭터 + 테마 ---------- */
